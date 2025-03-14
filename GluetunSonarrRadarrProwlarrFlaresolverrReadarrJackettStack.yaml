@@ -1,0 +1,132 @@
+version: "3"
+
+services:
+  gluetun:
+    image: qmcgaw/gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    volumes:
+      - ./gluetun:/gluetun
+      - mounting-drives:/mnt/syn  # Mount the CIFS share inside the container
+    environment:
+      - VPN_SERVICE_PROVIDER=pia
+      - VPN_TYPE=openvpn
+      - OPENVPN_USER=your_username_here
+      - OPENVPN_PASSWORD=your_password_here
+      - SERVER_REGIONS=US East
+    ports:
+      - 8090:8090  # qBittorrent UI Port
+      - 6881:6881  # Bittorrent port
+      - 6881:6881/udp  # Bittorrent UDP
+      - 8080:8080  # Web UI for other services (Sonarr, Radarr, etc.)
+      - 8989:8989  # Sonarr
+      - 7878:7878  # Radarr
+      - 9696:9696  # Prowlarr
+      - 8191:8191  # FlareSolverr
+      - 8787:8787  # Readarr
+      - 9117:9117  # Jackett
+      - 8888:8888/tcp  # HTTP proxy
+      - 8388:8388/tcp  # Shadowsocks
+      - 8388:8388/udp  # Shadowsocks
+
+  sonarr:
+    image: linuxserver/sonarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+    volumes:
+      - ./sonarr/config:/config
+      - mounting-drives:/mnt/syn  # Mount the CIFS share inside the container
+    depends_on:
+      - gluetun
+    network_mode: "service:gluetun"  # Use the network of Gluetun
+
+  radarr:
+    image: linuxserver/radarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+    volumes:
+      - ./radarr/config:/config
+      - mounting-drives:/mnt/syn  # Mount the CIFS share inside the container
+    depends_on:
+      - gluetun
+    network_mode: "service:gluetun"  # Use the network of Gluetun
+
+  qbittorrent:
+    image: linuxserver/qbittorrent
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+    volumes:
+      - ./qbittorrent/config:/config
+      - mounting-drives:/mnt/syn  # Mount the CIFS share inside the container
+    depends_on:
+      - gluetun
+    network_mode: "service:gluetun"  # Use the network of Gluetun
+
+  prowlarr:
+    image: linuxserver/prowlarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+    volumes:
+      - ./prowlarr/config:/config
+      - mounting-drives:/mnt/syn  # Mount the CIFS share inside the container
+    depends_on:
+      - gluetun
+    network_mode: "service:gluetun"  # Use the network of Gluetun
+
+  flaresolverr:
+    image: flaresolverr/flaresolverr:latest
+    environment:
+      - LOG_LEVEL=info
+      - TZ=America/New_York
+    ports:
+      - 8191:8191
+    restart: unless-stopped
+    depends_on:
+      - gluetun
+    network_mode: "service:gluetun"  # Use the network of Gluetun
+
+  readarr:
+    image: linuxserver/readarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+    volumes:
+      - ./readarr/config:/config
+      - mounting-drives:/mnt/syn  # Mount the CIFS share inside the container
+    depends_on:
+      - gluetun
+    network_mode: "service:gluetun"  # Use the network of Gluetun
+
+  jackett:
+    image: linuxserver/jackett
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+    volumes:
+      - ./jackett/config:/config
+      - mounting-drives:/mnt/syn  # Mount the CIFS share inside the container
+    ports:
+      - 9117:9117  # Jackett Web UI
+    depends_on:
+      - gluetun
+    network_mode: "service:gluetun"  # Use the network of Gluetun
+
+volumes:
+  mounting-drives:
+    driver: local
+    driver_opts:
+      type: cifs
+      o: "username=your_username_here,password=your_password_here,rw,uid=1000,gid=1000"
+      device: "//your_server_address/Media"
